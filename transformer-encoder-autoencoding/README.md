@@ -1,46 +1,63 @@
-# Transformer Encoder Autoencoding: Professional App
+# Transformer Encoder – Autoencoding (Masked Language Model)
 
-## Overview
-This project demonstrates Masked Language Modeling (MLM) using:
-- **Custom Transformer Encoder** (for learning)
-- **Pre-trained BERT** (for real-world results)
+## Objective
+Understand Transformer Encoder, Self-Attention, and Autoencoding by:
+- Reconstructing masked text (MLM)
+- Using the same encoder for sentence classification
 
-## Features
-- Web app with Streamlit
-- Choose between your model and BERT
-- Visualize attention weights
-- Compare outputs side-by-side
-- Modular, extensible code
+## What This Repo Covers (Checklist)
+- Transformer Encoder (PyTorch): ✅ `encoder.py`, `attention.py`, `positional_encoding.py`
+- Masked Language Modeling (MLM): ✅ `train_mlm.py` (toy dataset), ✅ `train_mlm_wiki.py` (Wikipedia)
+- Attention visualization: ✅ `visualize_attention.ipynb` + generated PNG (below)
+- Compare vs feed-forward baseline: ✅ `feedforward_baseline.py`
+- Sentence classification using same encoder: ✅ `train_cls.py`
 
-## Quick Start
-1. Install requirements:
-	```
-	pip install -r requirements.txt
-	```
-2. (Optional) Train your own model:
-	```
-	python transformer-encoder-autoencoding/train_mlm_wiki.py
-	```
-3. Run the app:
-	```
-	streamlit run transformer-encoder-autoencoding/app.py
-	```
+## Encoder Architecture Diagram
+![Encoder Architecture](results/encoder_architecture.png)
 
-## Usage
-- Enter a sentence with a `[MASK]` token.
-- Select the model (Student or BERT).
-- Click Predict to see the output and attention heatmap.
+## Autoencoding (MLM) Explanation
+Autoencoding here means: you corrupt a sentence by replacing a word with `[MASK]`, then train the encoder to reconstruct the original sentence.
+The Transformer Encoder uses self-attention to use *all* tokens as context for predicting the missing word.
 
-## Project Structure
-- `encoder.py`, `attention.py`, `positional_encoding.py`: Custom transformer code
-- `train_mlm_wiki.py`: Training script for your model
-- `app.py`: Professional Streamlit app
-- `bert_streamlit_app.py`: Minimal BERT demo
-- `requirements.txt`: All dependencies
+## Sample Input/Output (Expected Reconstruction)
+| Masked Input | Expected Output |
+|---|---|
+| Transformers use [MASK] attention | Transformers use self attention |
+| Mars is called the [MASK] planet | Mars is called the red planet |
+| Online learning improves [MASK] access | Online learning improves educational access |
+| Exercise improves [MASK] health | Exercise improves mental health |
+| Cricket is a [MASK] sport | Cricket is a popular sport |
+| Python is a [MASK] language | Python is a programming language |
+| Neural networks have [MASK] layers | Neural networks have hidden layers |
+| Trees reduce [MASK] pollution | Trees reduce air pollution |
+| Robots perform [MASK] tasks | Robots perform repetitive tasks |
+| Solar power is a [MASK] source | Solar power is a renewable source |
 
-## Screenshots
-Add screenshots of the app here after running.
+## Attention Heatmap Screenshot
+![Attention Heatmap](results/attention_heatmap.png)
 
----
+## Sentence Classification (Same Encoder)
+This project includes a tiny demo showing how the *same encoder* can do classification by adding a classifier head and using the first token representation ("[CLS]").
 
-**For best results, train your model on more data!**
+Run:
+```
+python transformer-encoder-autoencoding/train_cls.py
+```
+
+## Professional Demo App (Streamlit)
+Run the unified app (Student model + BERT):
+```
+streamlit run transformer-encoder-autoencoding/app.py
+```
+
+## Setup
+Install deps:
+```
+pip install -r transformer-encoder-autoencoding/requirements.txt
+```
+
+## Generate README Assets (PNG)
+If you don’t see the images rendering, regenerate them:
+```
+python transformer-encoder-autoencoding/generate_assets.py
+```

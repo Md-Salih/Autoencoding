@@ -1,4 +1,6 @@
 def build_vocab(sentences):
+    # Keep special tokens minimal and stable.
+    # NOTE: Some older checkpoints may not include newer tokens; code below stays backward-compatible.
     vocab = {'[PAD]': 0, '[MASK]': 1}
     idx = 2
     for sent in sentences:
@@ -8,11 +10,23 @@ def build_vocab(sentences):
                 idx += 1
     return vocab
 
-def encode_batch(sentences, vocab, max_len):
+def encode_batch(sentences, vocab, max_len, add_cls: bool = False):
     batch = []
     for sent in sentences:
-        ids = [vocab.get(w, vocab['[MASK]']) for w in sent.split()]
-        ids += [vocab['[PAD]']] * (max_len - len(ids))
+        pad_id = vocab.get('[PAD]', 0)
+        unk_fallback = vocab.get('[MASK]', 0)
+
+        tokens = sent.split()
+        if add_cls:
+            cls_id = vocab.get('[CLS]')
+            if cls_id is None:
+                raise ValueError("add_cls=True but vocab has no [CLS] token")
+            ids = [cls_id] + [vocab.get(w, unk_fallback) for w in tokens]
+        else:
+            ids = [vocab.get(w, unk_fallback) for w in tokens]
+
+        ids = ids[:max_len]
+        ids += [pad_id] * (max_len - len(ids))
         batch.append(ids)
     return batch
 
