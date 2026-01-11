@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from utils import build_vocab, encode_batch, decode_batch
+from synthetic_samples import MLM_PAIRS
 
 # Simple feed-forward baseline for MLM
 class FeedForwardMLM(nn.Module):
@@ -24,18 +25,7 @@ class FeedForwardMLM(nn.Module):
         return out
 
 def main():
-    data = [
-        ("Transformers use [MASK] attention", "Transformers use self attention"),
-        ("Mars is called the [MASK] planet", "Mars is called the red planet"),
-        ("Online learning improves [MASK] access", "Online learning improves educational access"),
-        ("Exercise improves [MASK] health", "Exercise improves mental health"),
-        ("Cricket is a [MASK] sport", "Cricket is a popular sport"),
-        ("Python is a [MASK] language", "Python is a programming language"),
-        ("Neural networks have [MASK] layers", "Neural networks have hidden layers"),
-        ("Trees reduce [MASK] pollution", "Trees reduce air pollution"),
-        ("Robots perform [MASK] tasks", "Robots perform repetitive tasks"),
-        ("Solar power is a [MASK] source", "Solar power is a renewable source"),
-    ]
+    data = MLM_PAIRS
     vocab = build_vocab([s for s, _ in data] + [t for _, t in data])
     vocab_size = len(vocab)
     max_len = max(len(s.split()) for s, _ in data)

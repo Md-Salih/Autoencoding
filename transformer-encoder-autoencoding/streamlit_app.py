@@ -30,7 +30,7 @@ def load_model_and_vocab():
 st.title("Transformer Encoder Autoencoding (Masked Language Model)")
 st.write("Enter a sentence with a [MASK] token. The model will reconstruct the masked word.")
 
-user_input = st.text_input("Input Sentence", "Transformers use [MASK] attention")
+user_input = st.text_input("Input Sentence", "The chef adds [MASK] to the soup")
 
 if st.button("Reconstruct"): 
     model, vocab, max_len = load_model_and_vocab()

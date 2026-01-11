@@ -33,6 +33,15 @@ def main():
     n_heads = 4
     num_layers = 2
     d_ff = 128
+    config = {
+        "vocab_size": vocab_size,
+        "d_model": d_model,
+        "n_heads": n_heads,
+        "num_layers": num_layers,
+        "d_ff": d_ff,
+        "max_len": max_len,
+        "task": "mlm",
+    }
     model = TransformerEncoder(vocab_size, d_model, n_heads, num_layers, d_ff, max_len)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
@@ -55,7 +64,7 @@ def main():
         print(f"Epoch {epoch+1}, Loss: {total_loss/len(data):.4f}")
     # Save model and vocab
     from save_load_model import save_model
-    save_model(model, vocab, path="results/model_wiki.pth")
+    save_model(model, vocab, path="results/model_wiki.pth", config=config)
     # Test
     for src, _ in random.sample(data, 5):
         src_ids = encode_batch([src], vocab, max_len)

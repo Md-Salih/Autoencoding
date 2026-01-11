@@ -1,4 +1,7 @@
 import os
+import sys
+import subprocess
+import time
 
 import streamlit as st
 import torch
@@ -16,11 +19,51 @@ This app demonstrates two approaches for Masked Language Modeling (MLM):
 Enter a sentence with a [MASK] token and select a model to see the prediction.
 """)
 
-user_input = st.text_input("Input Sentence", "Transformers use [MASK] attention")
+user_input = st.text_input("Input Sentence", "The chef adds [MASK] to the soup")
 model_choice = st.radio(
     "Choose Mode",
     ["Student Model (Your Transformer)", "Pre-trained Model (Hugging Face)"],
 )
+
+
+def _results_dir() -> str:
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    return os.path.join(base_dir, "results")
+
+
+def _tail_file(path: str, max_lines: int = 200) -> str:
+    if not os.path.exists(path):
+        return ""
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.readlines()
+    return "".join(lines[-max_lines:])
+
+
+def _start_training(script_name: str, log_name: str) -> None:
+    os.makedirs(_results_dir(), exist_ok=True)
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    script_path = os.path.join(base_dir, script_name)
+    log_path = os.path.join(_results_dir(), log_name)
+
+    # Start a separate process so Streamlit doesn't freeze.
+    # Redirect stdout/stderr to a log file that we can tail in the UI.
+    log_file = open(log_path, "w", encoding="utf-8")
+    proc = subprocess.Popen(
+        [sys.executable, script_path],
+        stdout=log_file,
+        stderr=subprocess.STDOUT,
+        cwd=base_dir,
+    )
+    st.session_state["train_proc"] = proc
+    st.session_state["train_log"] = log_path
+    st.session_state["train_started_at"] = time.time()
+
+
+def _train_status():
+    proc = st.session_state.get("train_proc")
+    if proc is None:
+        return None
+    return proc.poll()  # None=running, else exit code
 
 
 def _normalize_mask(text: str, mask_token: str) -> str:
@@ -30,7 +73,12 @@ def _normalize_mask(text: str, mask_token: str) -> str:
 
 @st.cache_resource
 def _get_fill_mask_pipeline(model_id: str):
-    from transformers import pipeline
+    # Keep the app output clean: Transformers can emit expected warnings
+    # about unused weights (pooler) when initializing MLM heads.
+    from transformers import logging as hf_logging, pipeline
+
+    hf_logging.set_verbosity_error()
+    hf_logging.disable_progress_bar()
 
     return pipeline("fill-mask", model=model_id)
 
@@ -46,6 +94,19 @@ def _find_student_checkpoint() -> str | None:
         if os.path.exists(p):
             return p
     return None
+
+
+def _find_student_checkpoints() -> dict:
+    base_dir = os.path.dirname(__file__)
+    candidates = {
+        "Student (Lab-trained)": os.path.join(base_dir, "results", "model_lab.pth"),
+        "Student (Wiki-trained)": os.path.join(base_dir, "results", "model_wiki.pth"),
+    }
+    found = {}
+    for label, path in candidates.items():
+        if os.path.exists(path):
+            found[label] = path
+    return found
 
 if model_choice.startswith("Pre-trained"):
     pretrained_options = {
@@ -74,6 +135,74 @@ if model_choice.startswith("Pre-trained"):
                 _ = nlp(sample, top_k=1)
             status.update(label="All selected models are cached.", state="complete")
 
+if model_choice.startswith("Student"):
+    found = _find_student_checkpoints()
+    student_options = [
+        "Student (Lab-trained)",
+        "Student (Wiki-trained)",
+    ]
+
+    available = [opt for opt in student_options if opt in found]
+    if len(available) == 1:
+        student_selected = available[0]
+        st.text_input("Student Checkpoint", value=student_selected, disabled=True)
+    else:
+        student_selected = st.selectbox(
+            "Student Checkpoint",
+            student_options,
+            index=0,
+        )
+    if student_selected not in found:
+        st.warning(
+            "Selected checkpoint not found yet. Train it first.\n\n"
+            "- Lab: `python transformer-encoder-autoencoding/train_mlm_lab.py`\n"
+            "- Wiki: `python transformer-encoder-autoencoding/train_mlm_wiki.py`"
+        )
+
+    with st.expander("Train Student Model (from the app)", expanded=False):
+        st.caption(
+            "Starts training in a separate background process and writes logs to `transformer-encoder-autoencoding/results/`. "
+            "Lab training is fast; Wikipedia training can take a long time and download data."
+        )
+
+        running = _train_status() is None and st.session_state.get("train_proc") is not None
+        cols = st.columns(3)
+
+        with cols[0]:
+            if st.button("Train Lab (Synthetic 10)", disabled=running):
+                _start_training("train_mlm_lab.py", "train_lab.log")
+                st.success("Started Lab training.")
+
+        with cols[1]:
+            if st.button("Train Wiki (Wikipedia)", disabled=running):
+                _start_training("train_mlm_wiki.py", "train_wiki.log")
+                st.success("Started Wiki training.")
+
+        with cols[2]:
+            if st.button("Stop Training", disabled=not running):
+                proc = st.session_state.get("train_proc")
+                if proc is not None:
+                    proc.terminate()
+                st.warning("Stop requested.")
+
+        log_path = st.session_state.get("train_log")
+        if log_path:
+            exit_code = _train_status()
+            if exit_code is None:
+                st.info("Training is running...")
+            else:
+                st.success(f"Training finished (exit code: {exit_code}).")
+            st.code(_tail_file(log_path), language="text")
+
+    st.markdown("#### Student prediction mode")
+    student_fill_mode = st.radio(
+        "How should the Student model produce output?",
+        ["Fill [MASK] only (recommended)", "Reconstruct all tokens"],
+        index=0,
+        help="Fill-only keeps your original words and replaces just the [MASK] token(s), which is much more stable for unseen inputs.",
+    )
+    student_top_k = st.slider("Student Top-K (per mask)", min_value=1, max_value=10, value=5)
+
 if st.button("Predict"):
     if model_choice.startswith("Pre-trained"):
         model_id = pretrained_options[selected_label]
@@ -93,35 +222,81 @@ if st.button("Predict"):
     else:
         from encoder import TransformerEncoder
 
-        ckpt_path = _find_student_checkpoint()
+        found = _find_student_checkpoints()
+        ckpt_path = found.get(student_selected)
         if ckpt_path is None:
-            st.error(
-                "Student model checkpoint not found. Train it first using: "
-                "`python transformer-encoder-autoencoding/train_mlm_wiki.py`"
-            )
+            st.error("Selected student checkpoint is missing. Train it first.")
         else:
             checkpoint = torch.load(ckpt_path, map_location="cpu")
             vocab = checkpoint["vocab"]
             vocab_size = len(vocab)
+            cfg = checkpoint.get("config", {})
 
-            d_model = 64
-            n_heads = 4
-            num_layers = 2
-            d_ff = 128
-            max_len = 20
+            d_model = int(cfg.get("d_model", 64))
+            n_heads = int(cfg.get("n_heads", 4))
+            num_layers = int(cfg.get("num_layers", 2))
+            d_ff = int(cfg.get("d_ff", 128))
+            max_len = int(cfg.get("max_len", 20))
 
             model = TransformerEncoder(vocab_size, d_model, n_heads, num_layers, d_ff, max_len)
             model.load_state_dict(checkpoint["model_state_dict"])
             model.eval()
 
+            # Help users understand why Wiki-student can look "wrong" on arbitrary inputs.
+            raw_tokens = user_input.split()
+            unknown_tokens = [t for t in raw_tokens if t not in vocab and t != "[MASK]"]
+            if unknown_tokens:
+                st.warning(
+                    "Student vocab is limited (whitespace tokenizer). Some input words are out-of-vocabulary, "
+                    "so the Wiki student may behave poorly on full-sentence reconstruction. "
+                    "Use 'Fill [MASK] only' or switch to Pre-trained mode for best results.\n\n"
+                    f"Unknown words ({len(unknown_tokens)}): {', '.join(unknown_tokens[:12])}"
+                )
+
+            tokens = user_input.split()
+            if len(tokens) > max_len:
+                st.warning(f"Input has {len(tokens)} tokens but this checkpoint supports max_len={max_len}. Extra tokens will be truncated.")
+
             src_ids = encode_batch([user_input], vocab, max_len)
             src_tensor = torch.tensor(src_ids)
+
             with torch.no_grad():
                 out, attn = model(src_tensor)
-                pred_ids = out.argmax(-1)
-                output = decode_batch(pred_ids.tolist(), vocab)[0]
 
-            st.success(f"Student Model Output: {output}")
+            inv_vocab = {v: k for k, v in vocab.items()}
+
+            if "[MASK]" not in tokens:
+                st.error("Please include a [MASK] token in the input sentence.")
+            else:
+                if student_fill_mode.startswith("Fill"):
+                    output_tokens = tokens[:]
+                    mask_positions = [i for i, t in enumerate(tokens) if t == "[MASK]" and i < max_len]
+
+                    all_suggestions = []
+                    for pos in mask_positions:
+                        logits = out[0, pos]  # [vocab]
+                        topk = torch.topk(logits, k=int(student_top_k))
+                        ids = topk.indices.tolist()
+                        vals = topk.values.tolist()
+                        suggestions = [(inv_vocab.get(i, "[UNK]"), float(v)) for i, v in zip(ids, vals)]
+                        all_suggestions.append((pos, suggestions))
+
+                        # Best token
+                        best_token = suggestions[0][0] if suggestions else "[UNK]"
+                        output_tokens[pos] = best_token
+
+                    output = " ".join(output_tokens)
+                    st.success(f"Student Model Output: {output}")
+
+                    st.write("### Student Top-K suggestions")
+                    for pos, suggestions in all_suggestions:
+                        st.caption(f"Mask position {pos}")
+                        st.write(", ".join([f"{tok}" for tok, _ in suggestions]))
+                else:
+                    pred_ids = out.argmax(-1)
+                    output = decode_batch(pred_ids.tolist(), vocab)[0]
+                    st.success(f"Student Model Output (reconstructed): {output}")
+
             st.caption(f"Checkpoint: {ckpt_path}")
 
             st.write("### Attention Weights (Head 0)")

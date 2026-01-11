@@ -9,7 +9,7 @@ Welcome! This app lets you explore Masked Language Modeling (MLM) using:
    ```
    streamlit run app.py
    ```
-2. Enter a sentence with a `[MASK]` token (e.g., `Transformers use [MASK] attention`).
+2. Enter a sentence with a `[MASK]` token (e.g., `The chef adds [MASK] to the soup`).
 3. Choose which model to use.
 4. Click Predict and see the results, including attention heatmaps for your model.
 

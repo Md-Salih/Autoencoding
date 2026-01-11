@@ -1,8 +1,8 @@
 def build_vocab(sentences):
     # Keep special tokens minimal and stable.
     # NOTE: Some older checkpoints may not include newer tokens; code below stays backward-compatible.
-    vocab = {'[PAD]': 0, '[MASK]': 1}
-    idx = 2
+    vocab = {'[PAD]': 0, '[MASK]': 1, '[UNK]': 2}
+    idx = 3
     for sent in sentences:
         for word in sent.split():
             if word not in vocab:
@@ -14,7 +14,7 @@ def encode_batch(sentences, vocab, max_len, add_cls: bool = False):
     batch = []
     for sent in sentences:
         pad_id = vocab.get('[PAD]', 0)
-        unk_fallback = vocab.get('[MASK]', 0)
+        unk_fallback = vocab.get('[UNK]', vocab.get('[MASK]', 0))
 
         tokens = sent.split()
         if add_cls:

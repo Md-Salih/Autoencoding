@@ -20,6 +20,8 @@ Autoencoding here means: you corrupt a sentence by replacing a word with `[MASK]
 The Transformer Encoder uses self-attention to use *all* tokens as context for predicting the missing word.
 
 ## Sample Input/Output (Expected Reconstruction)
+The following table is kept **only as a reference** (e.g., if your lab handout provided these examples). This repo’s code does **not** train on these sentences by default.
+
 | Masked Input | Expected Output |
 |---|---|
 | Transformers use [MASK] attention | Transformers use self attention |
@@ -32,6 +34,22 @@ The Transformer Encoder uses self-attention to use *all* tokens as context for p
 | Trees reduce [MASK] pollution | Trees reduce air pollution |
 | Robots perform [MASK] tasks | Robots perform repetitive tasks |
 | Solar power is a [MASK] source | Solar power is a renewable source |
+
+## Synthetic 10-Example Dataset (Used By This Repo)
+For training/running the toy “Lab” model, this repo uses an original set of 10 sentences defined in `synthetic_samples.py`:
+
+| Masked Input | Target Output |
+|---|---|
+| The chef adds [MASK] to the soup | The chef adds salt to the soup |
+| The train arrives at [MASK] station | The train arrives at central station |
+| A telescope helps us see [MASK] galaxies | A telescope helps us see distant galaxies |
+| Regular sleep improves [MASK] focus | Regular sleep improves overall focus |
+| The program uses [MASK] variables | The program uses integer variables |
+| Wind turbines generate [MASK] power | Wind turbines generate clean power |
+| The coach plans a [MASK] strategy | The coach plans a winning strategy |
+| Recycling reduces [MASK] waste | Recycling reduces plastic waste |
+| The musician plays a [MASK] melody | The musician plays a gentle melody |
+| The robot sorts [MASK] items | The robot sorts small items |
 
 ## Attention Heatmap Screenshot
 ![Attention Heatmap](results/attention_heatmap.png)
@@ -49,6 +67,23 @@ Run the unified app (Student model + BERT):
 ```
 streamlit run transformer-encoder-autoencoding/app.py
 ```
+
+## Efficient Training Workflow (Recommended)
+You can keep **both** your own trained MLM and multiple **pre-trained** models:
+
+1) Train **Lab Student Model** (fast, uses the synthetic 10-example dataset):
+```
+python transformer-encoder-autoencoding/train_mlm_lab.py
+```
+
+2) Train **Wiki Student Model** (slower, more general):
+```
+python transformer-encoder-autoencoding/train_mlm_wiki.py
+```
+
+3) Run the app and choose:
+- Student (Lab-trained) or Student (Wiki-trained)
+- Pre-trained model (BERT/DistilBERT/RoBERTa/BERT-large)
 
 ## Setup
 Install deps:

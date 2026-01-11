@@ -5,6 +5,7 @@ import seaborn as sns
 import torch
 
 from encoder import TransformerEncoder
+from synthetic_samples import MLM_PAIRS
 from utils import build_vocab, encode_batch
 
 
@@ -47,18 +48,7 @@ def generate_architecture_diagram(out_path: str) -> None:
 
 def generate_attention_heatmap(out_path: str) -> None:
     # Use the small lab dataset so this is deterministic and quick
-    pairs = [
-        ("Transformers use [MASK] attention", "Transformers use self attention"),
-        ("Mars is called the [MASK] planet", "Mars is called the red planet"),
-        ("Online learning improves [MASK] access", "Online learning improves educational access"),
-        ("Exercise improves [MASK] health", "Exercise improves mental health"),
-        ("Cricket is a [MASK] sport", "Cricket is a popular sport"),
-        ("Python is a [MASK] language", "Python is a programming language"),
-        ("Neural networks have [MASK] layers", "Neural networks have hidden layers"),
-        ("Trees reduce [MASK] pollution", "Trees reduce air pollution"),
-        ("Robots perform [MASK] tasks", "Robots perform repetitive tasks"),
-        ("Solar power is a [MASK] source", "Solar power is a renewable source"),
-    ]
+    pairs = MLM_PAIRS
 
     sentences = [s for s, _ in pairs] + [t for _, t in pairs]
     vocab = build_vocab(sentences)
@@ -67,7 +57,7 @@ def generate_attention_heatmap(out_path: str) -> None:
     model = TransformerEncoder(len(vocab), 64, 4, 2, 128, max_len)
     model.eval()
 
-    sent = "Transformers use [MASK] attention"
+    sent = pairs[0][0]
     x = torch.tensor(encode_batch([sent], vocab, max_len))
 
     with torch.no_grad():

@@ -5,21 +5,10 @@ import torch.optim as optim
 from encoder import TransformerEncoder
 from utils import build_vocab, encode_batch
 
+from synthetic_samples import CLS_PAIRS
 
-# Topic classification demo using the lab SAMPLE sentences.
-# This satisfies: "Use the same encoder to classify sentences".
-DATA = [
-    ("Transformers use [MASK] attention", "AI"),
-    ("Mars is called the [MASK] planet", "Space"),
-    ("Online learning improves [MASK] access", "Education"),
-    ("Exercise improves [MASK] health", "Health"),
-    ("Cricket is a [MASK] sport", "Sports"),
-    ("Python is a [MASK] language", "Computing"),
-    ("Neural networks have [MASK] layers", "AI"),
-    ("Trees reduce [MASK] pollution", "Environment"),
-    ("Robots perform [MASK] tasks", "Robotics"),
-    ("Solar power is a [MASK] source", "Energy"),
-]
+# Topic classification demo using the synthetic 10-example dataset.
+DATA = CLS_PAIRS
 
 
 def main():
