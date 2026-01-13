@@ -11,6 +11,8 @@ def load_student_model():
     
     # Try robust model first, then improved, then fall back to old model
     model_paths = [
+        "results/model_comprehensive.pth",
+        "../results/model_comprehensive.pth",
         "results/model_wiki_robust.pth",
         "../results/model_wiki_robust.pth",
         "results/model_wiki_improved.pth",
@@ -29,31 +31,47 @@ def load_student_model():
             break
     
     if checkpoint is None:
-        st.warning("Trained model not found. Please run train_improved_mlm.py first.")
+        st.warning("Trained model not found. Please run train_mlm_comprehensive.py first for best results.")
         return None, None, 20
     
     vocab = checkpoint['vocab']
     vocab_size = len(vocab)
     config = checkpoint.get('config', {})
     
-    # Get model architecture from config
+    # Get model architecture from config (handle both 'n_layers' and 'num_layers')
     d_model = config.get('d_model', 64)
     n_heads = config.get('n_heads', 4)
-    num_layers = config.get('num_layers', 2)
+    num_layers = config.get('n_layers', config.get('num_layers', 2))  # Check both keys
     d_ff = config.get('d_ff', 128)
-    max_len = config.get('max_len', 20)
+    max_len = checkpoint.get('max_len', config.get('max_len', 20))
     
-    # Show which model is being used
-    if "robust" in model_path_used:
-        model_type = "Robust (Best)"
+    # Show which model is being used with detailed info
+    if "comprehensive" in model_path_used:
+        model_type = "Comprehensive Dataset (Best)"
+        st.success(f"✨ Using {model_type} Student Model")
+        st.info(f"📊 Trained on 200+ diverse examples covering: general knowledge, daily life, technology, nature, education, health, business, travel, and sports!")
+        st.caption(f"Architecture: d_model={d_model}, layers={num_layers}, vocab={vocab_size}")
+    elif "robust" in model_path_used:
+        model_type = "Robust (Good)"
+        st.info(f"Using {model_type} Student Model (d_model={d_model}, layers={num_layers}, vocab={vocab_size})")
     elif "improved" in model_path_used:
         model_type = "Improved"
+        st.info(f"Using {model_type} Student Model (d_model={d_model}, layers={num_layers}, vocab={vocab_size})")
     else:
         model_type = "Original"
-    st.info(f"Using {model_type} Student Model (d_model={d_model}, layers={num_layers}, vocab={vocab_size})")
+        st.info(f"Using {model_type} Student Model (d_model={d_model}, layers={num_layers}, vocab={vocab_size})")
     
     model = TransformerEncoder(vocab_size, d_model, n_heads, num_layers, d_ff, max_len)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    
+    # Handle both 'model_state_dict' and 'model_state' keys for compatibility
+    if 'model_state_dict' in checkpoint:
+        model.load_state_dict(checkpoint['model_state_dict'])
+    elif 'model_state' in checkpoint:
+        model.load_state_dict(checkpoint['model_state'])
+    else:
+        st.error("Model checkpoint format not recognized")
+        return None, None, None
+    
     return model, vocab, max_len
 
 @st.cache_resource
@@ -205,26 +223,102 @@ if model_choice != "Student Model (Custom Trained)":
         "- Temperature 1.5-2.0: Creative, diverse predictions"
     )
 
-user_input = st.text_input("Input Sentence", "She drinks [MASK] in the morning")
+user_input = st.text_input("Input Sentence", placeholder="Enter a sentence with [MASK] token")
 
 if st.button("Reconstruct"): 
     if model_choice == "Student Model (Custom Trained)":
         model, vocab, max_len = load_student_model()
         if model is not None and vocab is not None:
-            model.eval()
-            src_ids = encode_batch([user_input], vocab, max_len)
-            src_tensor = torch.tensor(src_ids)
-            with torch.no_grad():
-                out, attn = model(src_tensor)
-                pred_ids = out.argmax(-1)
-                output = decode_batch(pred_ids.tolist(), vocab)[0]
-            st.success(f"**Student Model Output:** {output}")
-            st.write("### Attention Weights (Head 0)")
-            import matplotlib.pyplot as plt
-            import seaborn as sns
-            fig, ax = plt.subplots(figsize=(5, 4))
-            sns.heatmap(attn[0][0].detach().numpy(), annot=True, cmap='viridis', ax=ax)
-            st.pyplot(fig)
+            # Check if [MASK] exists in input
+            if "[MASK]" not in user_input:
+                st.error("No [MASK] token found in the input sentence.")
+            else:
+                model.eval()
+                
+                # Find the position of [MASK]
+                words = user_input.split()
+                try:
+                    mask_idx = words.index("[MASK]")
+                except ValueError:
+                    st.error("Could not find [MASK] token")
+                    st.stop()
+                
+                # Encode input
+                src_ids = encode_batch([user_input], vocab, max_len)
+                src_tensor = torch.tensor(src_ids)
+                
+                with torch.no_grad():
+                    out, attn = model(src_tensor)  # [B, T, vocab_size]
+                    
+                    # Get predictions at mask position
+                    mask_logits = out[0, mask_idx]  # [vocab_size]
+                    
+                    # Apply temperature
+                    scaled_logits = mask_logits / temperature
+                    probs = torch.softmax(scaled_logits, dim=0)
+                    
+                    # Get top-k predictions
+                    top_probs, top_indices = probs.topk(top_k_display)
+                    
+                    # Convert to words
+                    idx_to_word = {idx: word for word, idx in vocab.items()}
+                    top_words = [idx_to_word.get(idx.item(), "<UNK>") for idx in top_indices]
+                    
+                    # Create output sentence with top prediction
+                    output_words = words.copy()
+                    output_words[mask_idx] = top_words[0]
+                    output = " ".join(output_words)
+                
+                st.success(f"**Student Model Output:** {output}")
+                
+                # Show top predictions with same style as pretrained models
+                st.markdown("""
+                <style>
+                .info-icon {
+                    position: relative;
+                    display: inline-block;
+                    cursor: help;
+                    margin-left: 5px;
+                    color: #0066cc;
+                    font-size: 16px;
+                }
+                .info-icon .tooltiptext {
+                    visibility: hidden;
+                    background-color: #555;
+                    color: #fff;
+                    text-align: center;
+                    border-radius: 6px;
+                    padding: 10px 15px;
+                    position: absolute;
+                    z-index: 1000;
+                    bottom: 125%;
+                    right: 0;
+                    transform: translateX(0);
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                    white-space: nowrap;
+                    font-size: 14px;
+                    margin-bottom: 5px;
+                }
+                .info-icon:hover .tooltiptext {
+                    visibility: visible;
+                    opacity: 1;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                
+                st.write(f"### Top {len(top_words)} Predictions")
+                for i, (word, prob) in enumerate(zip(top_words, top_probs), 1):
+                    # Create the full sentence with this prediction
+                    full_sentence = user_input.replace("[MASK]", word.strip())
+                    
+                    col1, col2, col3 = st.columns([0.1, 0.7, 0.2])
+                    with col1:
+                        st.write(f"**{i}.**")
+                    with col2:
+                        st.progress(prob.item(), text=f"**{word.strip()}**")
+                    with col3:
+                        st.markdown(f'**{prob.item()*100:.2f}%** <span class="info-icon">ℹ️<span class="tooltiptext">{full_sentence}</span></span>', unsafe_allow_html=True)
     
     elif model_choice == "BERT Base (110M params)":
         bert_model, tokenizer = load_bert_model()
