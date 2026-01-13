@@ -1,0 +1,41 @@
+Epoch 10, Loss: 0.7581
+Epoch 20, Loss: 0.1551
+Epoch 30, Loss: 0.0669
+Epoch 40, Loss: 0.0394
+Epoch 50, Loss: 0.0266
+Epoch 60, Loss: 0.0177
+Epoch 70, Loss: 0.0136
+Epoch 80, Loss: 0.0105
+Epoch 90, Loss: 0.0084
+Epoch 100, Loss: 0.0069
+Model saved to D:\SDE\Projects\Auto-Encoding\transformer-encoder-autoencoding\results\model_lab.pth
+Input: The chef adds [MASK] to the soup
+Output: The chef adds salt to the soup
+
+Input: The train arrives at [MASK] station
+Output: The train arrives at central station
+
+Input: A telescope helps us see [MASK] galaxies
+Output: A telescope helps us see distant galaxies
+
+Input: Regular sleep improves [MASK] focus
+Output: Regular sleep improves overall focus
+
+Input: The program uses [MASK] variables
+Output: The program uses integer variables
+
+Input: Wind turbines generate [MASK] power
+Output: Wind turbines generate clean power
+
+Input: The coach plans a [MASK] strategy
+Output: The coach plans a winning strategy
+
+Input: Recycling reduces [MASK] waste
+Output: Recycling reduces plastic waste
+
+Input: The musician plays a [MASK] melody
+Output: The musician plays a gentle melody
+
+Input: The robot sorts [MASK] items
+Output: The robot sorts small items
+
