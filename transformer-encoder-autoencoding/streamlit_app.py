@@ -174,10 +174,36 @@ with left:
 # ================= RIGHT PANEL =================
 with right:
     st.markdown("<div class='app-card'>", unsafe_allow_html=True)
-    st.markdown("<div class='section-title'>Input Sentence</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>✍️ Input Sentence</div>", unsafe_allow_html=True)
 
+    # Sample sentences dictionary
+    sample_sentences = {
+        "Custom Input": "",
+        "SAMPLE1 - AI": "Transformers use [MASK] attention",
+        "SAMPLE2 - Space": "Mars is called the [MASK] planet",
+        "SAMPLE3 - Education": "Online learning improves [MASK] access",
+        "SAMPLE4 - Health": "Exercise improves [MASK] health",
+        "SAMPLE5 - Sports": "Cricket is a [MASK] sport",
+        "SAMPLE6 - Computing": "Python is a [MASK] language",
+        "SAMPLE7 - AI": "Neural networks have [MASK] layers",
+        "SAMPLE8 - Environment": "Trees reduce [MASK] pollution",
+        "SAMPLE9 - Robotics": "Robots perform [MASK] tasks",
+        "SAMPLE10 - Energy": "Solar power is a [MASK] source"
+    }
+    
+    # Sample selector
+    selected_sample = st.selectbox(
+        "📋 Quick Samples",
+        list(sample_sentences.keys()),
+        index=0
+    )
+    
+    # Get default value from selected sample
+    default_value = sample_sentences[selected_sample]
+    
     user_input = st.text_input(
         "Sentence",
+        value=default_value,
         placeholder="Example: The chef adds [MASK] to the soup"
     )
 
